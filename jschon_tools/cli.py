@@ -85,15 +85,16 @@ def sort_main() -> None:
 
     catalog = jschon.create_catalog(args.draft.split("/")[4])
     for l in args.library:
-        l_str = str(l.relative_to(args.schema.parent)).removeprefix("/")
-        file_uri = jschon.URI(f'file:///{l_str}/')
-        print(f"l path: {l}")
-        print(f"Schema parent: {args.schema.parent}")
-        print(f"l_str: {l_str}")
-        print(f"Adding file URI: {file_uri}")
-        catalog.add_uri_source(file_uri, jschon.LocalSource(l, suffix=".json"))
+        file_uri = jschon.URI('file:///')
+        catalog.add_uri_source(
+            file_uri,
+            jschon.LocalSource(l.resolve().absolute(), suffix=".json")
+        )
         for s in l.glob("**/*.json"):
-            catalog.add_schema(file_uri, jschon.JSONSchema(json.loads(s.read_text())))
+            catalog.add_schema(
+                file_uri,
+                jschon.JSONSchema(json.loads(s.read_text()))
+            )
     doc_data, schema_data = _load_doc_and_schema(args)
     doc_data = process_json_doc(doc_data=doc_data, schema_data=schema_data, sort=True)
     _maybe_persist(doc_data, args)
