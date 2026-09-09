@@ -1,13 +1,12 @@
 import argparse
 import json
-from typing import Mapping
-from typing import Tuple
+from collections.abc import Mapping
+from pathlib import Path
 
 import jschon
 
 from ._main import process_json_doc
-from ._yaml import create_yaml_processor
-from ._yaml import YamlIndent
+from ._yaml import YamlIndent, create_yaml_processor
 
 
 def _make_parser(*, prog: str, description: str) -> argparse.ArgumentParser:
@@ -19,6 +18,14 @@ def _make_parser(*, prog: str, description: str) -> argparse.ArgumentParser:
     parser.add_argument(
         '--schema', required=True, metavar='/path/to/schema.json', help='path to the JSON Schema document'
     )
+    parser.add_argument(
+        "-d",
+        "--draft",
+        type=str,
+        default="https://json-schema.org/draft/2020-12/schema",
+        help="The JSON schema draft version",
+    )
+    parser.add_argument('-l', '--library', type=Path, action='append', help='Schema library base URI(s)')
     parser.add_argument(
         '--dry-run',
         '-n',
@@ -37,12 +44,12 @@ def _make_parser(*, prog: str, description: str) -> argparse.ArgumentParser:
 
 
 def _is_yaml_path(path: str) -> bool:
-    return path.endswith('.yaml') or path.endswith('.yml')
+    return path.endswith(('.yaml', '.yml'))
 
 
 def _load_doc_and_schema(
     args: argparse.Namespace,
-) -> Tuple[jschon.json.JSONCompatible, Mapping[str, jschon.json.JSONCompatible]]:
+) -> tuple[jschon.json.JSONCompatible, Mapping[str, jschon.json.JSONCompatible]]:
     with open(args.path) as f:
         if _is_yaml_path(args.path):
             yaml = create_yaml_processor(indent=args.yaml_indent)
@@ -70,14 +77,19 @@ def _maybe_persist(doc_data: jschon.json.JSONCompatible, args: argparse.Namespac
 
 
 def sort_main() -> None:
-    jschon.create_catalog('2020-12')
-
     parser = _make_parser(
         prog='jschon-sort',
         description="Sorts a JSON or YAML document to match a JSON Schema's order of properties",
     )
     args = parser.parse_args()
 
+    catalog = jschon.create_catalog(args.draft.split("/")[4])
+    for l in args.library:
+        l_str = str(l).removeprefix("/")
+        file_uri = jschon.URI(f'file:///{l_str}/')
+        catalog.add_uri_source(file_uri, jschon.LocalSource(l))
+        for s in l.glob("**/*.json"):
+            catalog.add_schema(file_uri, jschon.JSONSchema(json.loads(s.read_text())))
     doc_data, schema_data = _load_doc_and_schema(args)
     doc_data = process_json_doc(doc_data=doc_data, schema_data=schema_data, sort=True)
     _maybe_persist(doc_data, args)

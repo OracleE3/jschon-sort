@@ -2,7 +2,7 @@ import json
 import subprocess
 from pathlib import Path
 from textwrap import dedent
-from typing import List
+from typing import list
 from typing import Literal
 from typing import Union
 
@@ -52,7 +52,7 @@ def test_sort_cli(tmp_path: Path, dry_run: bool, file_format: Literal['yaml', 'y
     schema_path.write_text(json.dumps(schema))
 
     # Act
-    args: List[Union[str, Path]] = ['jschon-sort', '--schema', schema_path, doc_path]
+    args: list[Union[str, Path]] = ['jschon-sort', '--schema', schema_path, doc_path]
     if dry_run:
         args += ['--dry-run']
     if file_format == 'yaml_indented':
@@ -148,7 +148,7 @@ def test_remove_additional_props_cli(
     schema_path.write_text(json.dumps(schema))
 
     # Act
-    args: List[Union[str, Path]] = ['jschon-remove-additional-props', '--schema', schema_path, doc_path]
+    args: list[Union[str, Path]] = ['jschon-remove-additional-props', '--schema', schema_path, doc_path]
     if dry_run:
         args += ['--dry-run']
     if file_format == 'yaml_indented':

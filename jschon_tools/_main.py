@@ -1,19 +1,15 @@
 import math
+from collections.abc import Mapping, Sequence
 from typing import cast
-from typing import Dict
-from typing import List
-from typing import Mapping
-from typing import Sequence
-from typing import Tuple
 
 import jschon.jsonschema
+from jschon.exc import CatalogError
 from jschon.json import JSONCompatible
-
 
 _END_SORT_KEY = (math.inf,)
 
 
-def _get_sort_keys_for_json_nodes(root_node: jschon.JSON) -> Mapping[jschon.JSONPointer, Tuple[int, ...]]:
+def _get_sort_keys_for_json_nodes(root_node: jschon.JSON) -> Mapping[jschon.JSONPointer, tuple[int, ...]]:
     """
     Gets a mapping from JSON nodes (as JSON pointers) to sort keys (as tuples of integers) that match their position
     within the JSON.
@@ -21,7 +17,7 @@ def _get_sort_keys_for_json_nodes(root_node: jschon.JSON) -> Mapping[jschon.JSON
     mapping = {}
     root_depth = len(root_node.path)
 
-    def _recurse(node: jschon.JSON, node_sort_key: Tuple[int, ...]) -> None:
+    def _recurse(node: jschon.JSON, node_sort_key: tuple[int, ...]) -> None:
         relative_path = node.path[root_depth:]
         mapping[relative_path] = node_sort_key
 
@@ -43,10 +39,10 @@ def _get_sort_keys_for_json_nodes(root_node: jschon.JSON) -> Mapping[jschon.JSON
 
 def _get_sort_keys_for_json_doc(
     *, root_result: jschon.jsonschema.Result
-) -> Mapping[jschon.JSONPointer, Tuple[int, ...]]:
-    schema_sort_keys_cache: Dict[jschon.URI, Mapping[jschon.JSONPointer, Tuple[int, ...]]] = {}
+) -> Mapping[jschon.JSONPointer, tuple[int, ...]]:
+    schema_sort_keys_cache: dict[jschon.URI, Mapping[jschon.JSONPointer, tuple[int, ...]]] = {}
 
-    def _get_sort_keys_for_schema(schema: jschon.JSONSchema) -> Mapping[jschon.JSONPointer, Tuple[int, ...]]:
+    def _get_sort_keys_for_schema(schema: jschon.JSONSchema) -> Mapping[jschon.JSONPointer, tuple[int, ...]]:
         canonical_uri = schema.canonical_uri
         if canonical_uri is None:  # pragma: no cover
             raise ValueError('Schema must have a canonical URI')
@@ -56,7 +52,7 @@ def _get_sort_keys_for_json_doc(
         schema_sort_keys_cache[canonical_uri] = sort_keys
         return sort_keys
 
-    doc_sort_keys: Dict[jschon.JSONPointer, Tuple[int, ...]] = {}
+    doc_sort_keys: dict[jschon.JSONPointer, tuple[int, ...]] = {}
 
     def _traverse_result(result: jschon.jsonschema.Result) -> None:
         schema_sort_keys = _get_sort_keys_for_schema(result.schema)
@@ -69,13 +65,17 @@ def _get_sort_keys_for_json_doc(
     return doc_sort_keys
 
 
-def _get_root_result(doc_json: jschon.JSON, schema_data: Mapping[str, JSONCompatible]) -> jschon.jsonschema.Result:
+def _get_root_result(
+    doc_json: jschon.JSON,
+    schema_data: Mapping[str, JSONCompatible],
+    schema_draft: str = "https://json-schema.org/draft/2020-12/schema",
+) -> jschon.jsonschema.Result:
     try:
         root_schema = jschon.JSONSchema(schema_data)
-    except jschon.CatalogError:
+    except CatalogError:
         # jschon only supports newer jsonschema drafts
         schema_data = dict(schema_data)
-        schema_data['$schema'] = "https://json-schema.org/draft/2020-12/schema"
+        schema_data['$schema'] = schema_draft
         root_schema = jschon.JSONSchema(schema_data)
     res = root_schema.evaluate(doc_json)
     if not res.valid:
@@ -100,11 +100,11 @@ def process_json_doc(
         @param json_node: the node being traversed (jschon's representation)
         @return: sorted copy
         """
-        if isinstance(node, Dict):
+        if isinstance(node, dict):
             object_data = cast(Mapping[str, jschon.JSON], json_node.data)
-            key_sort_keys: Dict[str, Tuple[Tuple[float, ...], str]] = {}
+            key_sort_keys: dict[str, tuple[tuple[float, ...], str]] = {}
 
-            properties: List[Tuple[str, JSONCompatible]] = []
+            properties: list[tuple[str, JSONCompatible]] = []
 
             k: str
             v: JSONCompatible
