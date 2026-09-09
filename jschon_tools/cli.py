@@ -16,7 +16,7 @@ def _make_parser(*, prog: str, description: str) -> argparse.ArgumentParser:
     )
     parser.add_argument('path', help='path to the JSON / YAML document')
     parser.add_argument(
-        '--schema', required=True, metavar='/path/to/schema.json', help='path to the JSON Schema document'
+        '--schema', required=True, type=Path, metavar='/path/to/schema.json', help='path to the JSON Schema document'
     )
     parser.add_argument(
         "-d",
@@ -85,9 +85,13 @@ def sort_main() -> None:
 
     catalog = jschon.create_catalog(args.draft.split("/")[4])
     for l in args.library:
-        l_str = str(l).removeprefix("/")
+        l_str = str(l.relative_to(args.schema.parent)).removeprefix("/")
         file_uri = jschon.URI(f'file:///{l_str}/')
-        catalog.add_uri_source(file_uri, jschon.LocalSource(l))
+        print(f"l path: {l}")
+        print(f"Schema parent: {args.schema.parent}")
+        print(f"l_str: {l_str}")
+        print(f"Adding file URI: {file_uri}")
+        catalog.add_uri_source(file_uri, jschon.LocalSource(l, suffix=".json"))
         for s in l.glob("**/*.json"):
             catalog.add_schema(file_uri, jschon.JSONSchema(json.loads(s.read_text())))
     doc_data, schema_data = _load_doc_and_schema(args)
