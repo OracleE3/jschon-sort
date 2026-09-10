@@ -84,7 +84,7 @@ def sort_main() -> None:
     args = parser.parse_args()
 
     catalog = jschon.create_catalog(args.draft.split("/")[4])
-    for l in args.library:
+    for l in args.library or []:
         dir = l.name if l.is_dir() else l.parent.name
         file_uri = jschon.URI(f'file:///{dir}/')
         catalog.add_uri_source(
